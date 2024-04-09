@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cadaoSQL">
+<!-- 회원 가입 -->
+    <insert id="cadaoMemberInsert" parameterType="caDto">
+        INSERT INTO MEMBER (ID, PWD, NAME, INPUTDATE)
+        VALUES (#{id}, #{pwd}, #{name}, SYSDATE())
+    </insert>
+<!-- 회원 로그인 -->
+    <select id="cadaoMemberLogin" parameterType="caDto" resultType="caDto">
+        SELECT ID, PWD FROM MEMBER WHERE 1=1 AND ID = #{id} AND PWD = #{pwd}
+    </select>
+<!-- 회원 탈퇴 -->
+    <delete id="cadaoMemberDelete" parameterType="caDto">
+        DELETE FROM MEMBER WHERE 1=1 AND ID = #{id} AND PWD = #{pwd}
+    </delete>
+<!-- 계좌 닉네임 조회 -->
+    <select id="cadaoAccountNicknameSelect" parameterType="caDto" resultType="caDto">
+        SELECT * FROM ACCOUNT WHERE 1=1 AND ID = #{id} AND NICKNAME = #{nickname}
+    </select>
+<!-- 계좌등록 -->
+    <insert id="cadaoAssetAccountInsert" parameterType="caDto">
+        INSERT INTO ACCOUNT(ID, ACCDIV, BANK, ACCNAME, ACCNO, ACCAMOUNT, NICKNAME)
+        VALUES (#{id}, #{accdiv}, #{bank}, #{accname}, #{accno}, #{accamount}, #{nickname})
+    </insert>
+<!-- 카드 닉네임 조회 -->
+    <select id="cadaoCardNicknameSelect" parameterType="caDto" resultType="caDto">
+        SELECT * FROM CARD WHERE 1=1 AND ID = #{id} AND NICKNAME = #{nickname}
+    </select>
+<!-- 카드등록 -->
+    <insert id="cadaoAssetCardInsert" parameterType="caDto">
+        INSERT INTO CARD(ID, CARD, CARDNAME, CARDNO, NICKNAME, CARDAMOUNT)
+        VALUES (#{id}, #{card}, #{cardname}, #{cardno}, #{nickname}, 0)
+    </insert>
+<!-- 계좌삭제 -->
+    <delete id="cadaoAssetAccountDelete" parameterType="caDto">
+        DELETE FROM ACCOUNT WHERE 1=1 AND ID = #{id} AND BANK = #{caname} AND ACCNO = #{cano}
+    </delete>
+<!-- 카드삭제 -->
+    <delete id="cadaoAssetCardDelete" parameterType="caDto">
+        DELETE FROM CARD WHERE 1=1 AND ID = #{id} AND CARD = #{caname} AND CARDNO = #{cano}
+    </delete>
+<!-- 계좌조회 -->
+    <select id="cadaoAssetAccountSelect" parameterType="String" resultType="caDto">
+        SELECT ACCDIV, BANK, ACCNAME, ACCNO, ACCAMOUNT, NICKNAME
+        FROM ACCOUNT
+        WHERE 1=1
+        AND ID = #{id}
+    </select>
+<!-- 카드조회 -->
+    <select id="cadaoAssetCardSelect" parameterType="String" resultType="caDto">
+        SELECT CARD, CARDNAME, CARDNO, NICKNAME, CARDAMOUNT
+        FROM CARD
+        WHERE 1=1
+        AND ID = #{id}
+    </select>
+<!-- 입출금내역 전체조회 일별-->
+    <select id="cadaDayAllSelect" parameterType="map" resultType="caDto">
+        SELECT ID, DATE_FORMAT(CADATE, '%Y-%m-%d') AS CADATE, -(AMOUNT) AS AMOUNT, CATEGORY, NICKNAME
+        FROM CARDWITHDRAW
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') = #{cadate}    /* 카드이용내역 */
+        UNION
+        SELECT ID, DATE_FORMAT(CADATE, '%Y-%m-%d') AS CADATE, AMOUNT, CATEGORY, NICKNAME
+        FROM ACCOUNTDEPOSIT
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') = #{cadate}  /* 계좌입금내역 */
+        UNION
+        SELECT ID, DATE_FORMAT(cadate,'%Y-%m-%d') AS CADATE, -(AMOUNT) AS AMOUNT, CATEGORY, NICKNAME
+        FROM ACCOUNTWITHDRAW
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') = #{cadate}  /* 계좌출금내역 */
+    </select>
+<!-- 입금총액구하기 -->
+    <select id="cadaoAccountDepositSumAmountDaySelect" parameterType="map" resultType="integer">
+        SELECT SUM(AMOUNT)  AS AMOUNT
+        FROM ACCOUNTDEPOSIT
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') = #{cadate}
+    </select>
+<!-- 출금총액구하기 -->
+    <select id="cadaoDrawSumAmountDaySelect" parameterType="map" resultType="integer">
+        SELECT -SUM(AMOUNT) AS AMOUNT
+        FROM (
+              SELECT *
+              FROM CARDWITHDRAW
+              WHERE 1=1
+              AND ID = #{id}
+              AND DATE_FORMAT(CADATE, '%Y-%m-%d') = #{cadate}
+              UNION ALL
+              SELECT *
+              FROM ACCOUNTWITHDRAW
+              WHERE 1=1
+              AND ID = #{id}
+              AND DATE_FORMAT(CADATE, '%Y-%m-%d') = #{cadate}
+            )TB01
+        WHERE 1=1
+    </select>
+<!-- 입출금내역 전체조회 기간별-->
+    <select id="cadaWeekAllSelect" parameterType="map" resultType="caDto">
+        SELECT ID, DATE_FORMAT(CADATE, '%Y-%m-%d') AS CADATE, -(AMOUNT) AS AMOUNT, CATEGORY, NICKNAME
+        FROM CARDWITHDRAW
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[>=]]> #{stcadate}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[<=]]> #{edcadate}   /* 카드이용내역 */
+        UNION
+        SELECT ID, DATE_FORMAT(CADATE, '%Y-%m-%d') AS CADATE, AMOUNT, CATEGORY, NICKNAME
+        FROM ACCOUNTDEPOSIT
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[>=]]> #{stcadate}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[<=]]> #{edcadate}   /* 계좌입금내역 */
+        UNION
+        SELECT ID, DATE_FORMAT(cadate,'%Y-%m-%d') AS CADATE, -(AMOUNT) AS AMOUNT, CATEGORY, NICKNAME
+        FROM ACCOUNTWITHDRAW
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[>=]]> #{stcadate}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[<=]]> #{edcadate}   /* 계좌출금내역 */
+    </select>
+<!-- 입금총액구하기 -->
+    <select id="cadaoAccountDepositSumAmountWeekSelect" parameterType="map" resultType="integer">
+        SELECT SUM(AMOUNT) AS AMOUNT
+        FROM ACCOUNTDEPOSIT
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[>=]]> #{stcadate}
+        AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[<=]]> #{edcadate}
+    </select>
+<!-- 출금총액구하기 -->
+    <select id="cadaoDrawSumAmountWeekSelect" parameterType="map" resultType="integer">
+        SELECT -SUM(AMOUNT) AS AMOUNT
+        FROM (
+                SELECT *
+                FROM CARDWITHDRAW
+                WHERE 1=1
+                AND ID = #{id}
+                AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[>=]]> #{stcadate}
+                AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[<=]]> #{edcadate}
+                UNION ALL
+                SELECT *
+                FROM ACCOUNTWITHDRAW
+                WHERE 1=1
+                AND ID = #{id}
+                AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[>=]]> #{stcadate}
+                AND DATE_FORMAT(CADATE, '%Y-%m-%d') <![CDATA[<=]]> #{edcadate}
+                )TB01
+        WHERE 1=1
+    </select>
+<!-- 입출금내역 전체조회 월별-->
+    <select id="cadaMonthAllSelect" parameterType="map" resultType="caDto">
+        SELECT ID, DATE_FORMAT(CADATE, '%Y-%m-%d') AS CADATE, -(AMOUNT) AS AMOUNT, CATEGORY, NICKNAME
+        FROM CARDWITHDRAW
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y') = #{year}
+        AND DATE_FORMAT(CADATE, '%m') = #{month}   /* 카드이용내역 */
+        UNION
+        SELECT ID, DATE_FORMAT(CADATE, '%Y-%m-%d') AS CADATE, AMOUNT, CATEGORY, NICKNAME
+        FROM ACCOUNTDEPOSIT
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y') = #{year}
+        AND DATE_FORMAT(CADATE, '%m') = #{month}   /* 계좌입금내역 */
+        UNION
+        SELECT ID, DATE_FORMAT(cadate,'%Y-%m-%d') AS CADATE, -(AMOUNT) AS AMOUNT, CATEGORY, NICKNAME
+        FROM ACCOUNTWITHDRAW
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y') = #{year}
+        AND DATE_FORMAT(CADATE, '%m') = #{month}   /* 계좌출금내역 */
+    </select>
+<!-- 입금총액구하기 -->
+    <select id="cadaoAccountDepositSumAmountMonthSelect" parameterType="map" resultType="integer">
+        SELECT SUM(AMOUNT) AS AMOUNT
+        FROM ACCOUNTDEPOSIT
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y') = #{year}
+        AND DATE_FORMAT(CADATE, '%m') = #{month}
+    </select>
+<!-- 출금총액구하기 -->
+    <select id="cadaoDrawSumAmountMonthSelect" parameterType="map" resultType="integer">
+        SELECT -SUM(AMOUNT) AS AMOUNT
+        FROM (
+                SELECT *
+                FROM CARDWITHDRAW
+                WHERE 1=1
+                AND ID = #{id}
+                AND DATE_FORMAT(CADATE, '%Y') = #{year}
+                AND DATE_FORMAT(CADATE, '%m') = #{month}
+                UNION ALL
+                SELECT *
+                FROM ACCOUNTWITHDRAW
+                WHERE 1=1
+                AND ID = #{id}
+                AND DATE_FORMAT(CADATE, '%Y') = #{year}
+                AND DATE_FORMAT(CADATE, '%m') = #{month}
+                )TB01
+        WHERE 1=1
+    </select>
+<!-- 입출금내역 전체조회 카테고리별-->
+    <select id="cadaCategoryAllSelect" parameterType="map" resultType="caDto">
+        SELECT ID, DATE_FORMAT(CADATE, '%Y-%m-%d') AS CADATE, -(AMOUNT) AS AMOUNT, CATEGORY, NICKNAME
+        FROM CARDWITHDRAW
+        WHERE 1=1
+        AND ID = #{id}
+        AND CATEGORY LIKE #{category} /* 카드이용내역 */
+        UNION
+        SELECT ID, DATE_FORMAT(CADATE, '%Y-%m-%d') AS CADATE, AMOUNT, CATEGORY, NICKNAME
+        FROM ACCOUNTDEPOSIT
+        WHERE 1=1
+        AND ID = #{id}
+        AND CATEGORY LIKE #{category}   /* 계좌입금내역 */
+        UNION
+        SELECT ID, DATE_FORMAT(cadate,'%Y-%m-%d') AS CADATE, -(AMOUNT) AS AMOUNT, CATEGORY, NICKNAME
+        FROM ACCOUNTWITHDRAW
+        WHERE 1=1
+        AND ID = #{id}
+        AND CATEGORY LIKE #{category}   /* 계좌출금내역 */
+    </select>
+<!-- 입금총액구하기 -->
+    <select id="cadaoAccountDepositSumAmountCategorySelect" parameterType="map" resultType="integer">
+        SELECT SUM(AMOUNT) AS AMOUNT
+        FROM ACCOUNTDEPOSIT
+        WHERE 1=1
+        AND ID = #{id}
+        AND CATEGORY LIKE #{category}
+    </select>
+<!-- 출금총액구하기 -->
+    <select id="cadaoDrawSumAmountCategorySelect" parameterType="map" resultType="integer">
+        SELECT -SUM(AMOUNT) AS AMOUNT
+        FROM (
+                SELECT *
+                FROM CARDWITHDRAW
+                WHERE 1=1
+                AND ID = #{id}
+                AND CATEGORY LIKE #{category}
+                UNION ALL
+                SELECT *
+                FROM ACCOUNTWITHDRAW
+                WHERE 1=1
+                AND ID = #{id}
+                AND CATEGORY LIKE #{category}
+                )TB01
+        WHERE 1=1
+    </select>
+<!-- 입금달력(입금총액 구하기)-->
+    <select id="cadaCalendarDepositSelect" parameterType="map" resultType="caDto">
+        SELECT DATE_FORMAT(CADATE, '%d') AS CADATE, SUM(AMOUNT) AS AMOUNT
+        FROM ACCOUNTDEPOSIT
+        WHERE 1=1
+        AND ID = #{id}
+        AND DATE_FORMAT(CADATE, '%Y') = #{year}
+        AND DATE_FORMAT(CADATE, '%m') = #{month}
+        GROUP BY DATE_FORMAT(CADATE, '%d')
+    </select>
+<!-- 출금달력(출금총액 구하기)-->
+    <select id="cadaCalendarWithDrawSelect" parameterType="map" resultType="caDto">
+        SELECT DATE_FORMAT(CADATE, '%d') AS CADATE, SUM(AMOUNT) AS AMOUNT
+        FROM (
+                SELECT *
+                FROM CARDWITHDRAW
+                WHERE 1=1
+                AND ID = #{id}
+                AND DATE_FORMAT(CADATE, '%Y') = #{year}
+                AND DATE_FORMAT(CADATE, '%m') = #{month}
+                UNION ALL
+                SELECT *
+                FROM ACCOUNTWITHDRAW
+                WHERE 1=1
+                AND ID = #{id}
+                AND DATE_FORMAT(CADATE, '%Y') = #{year}
+                AND DATE_FORMAT(CADATE, '%m') = #{month}
+            ) TB01
+        GROUP BY DATE_FORMAT(CADATE, '%d')
+    </select>
+<!-- 카드지출등록 -->
+    <insert id="cadaoCardWithDrawInsert" parameterType="caDto">
+        INSERT INTO CARDWITHDRAW (ID, CADATE, AMOUNT, CATEGORY, CARDNO, NICKNAME)
+        VALUES (#{id}, #{cadate}, #{amount}, #{category}, #{cano}, #{nickname})
+    </insert>
+<!-- 카드지출등록 -->
+    <update id="cadaoCardUpdate" parameterType="caDto">
+        UPDATE CARD SET CARDAMOUNT = (CARDAMOUNT - #{caamount}) WHERE 1=1 AND NICKNAME = #{nickname}
+    </update>
+<!-- 계좌지출등록 -->
+    <insert id="cadaoAccountWithDrawInsert" parameterType="caDto">
+        INSERT INTO ACCOUNTWITHDRAW (ID, CADATE, AMOUNT, CATEGORY, ACCNO, NICKNAME)
+        VALUES (#{id}, #{cadate}, #{amount}, #{category}, #{accno}, #{nickname})
+    </insert>
+<!-- 계좌지출등록 -->
+    <update id="cadaoAccountUpdate" parameterType="caDto">
+        UPDATE ACCOUNT SET ACCAMOUNT = (ACCAMOUNT + #{caamount}) WHERE 1=1 AND NICKNAME = #{nickname}
+    </update>
+<!-- 카드번호조회 -->
+    <select id="cadaoCardNoSelect" parameterType="caDto" resultType="string">
+        SELECT CARDNO FROM CARD WHERE 1=1 AND ID = #{id} AND NICKNAME = #{nickname}
+    </select>
+<!-- 계좌번호조회 -->
+    <select id="cadaoAccNoSelect" parameterType="caDto" resultType="string">
+        SELECT ACCNO FROM ACCOUNT WHERE 1=1 AND ID = #{id} AND NICKNAME = #{nickname}
+    </select>
+<!-- 계좌입금등록 -->
+    <insert id="cadaoAccountDepositInsert" parameterType="caDto">
+        INSERT INTO ACCOUNTDEPOSIT (ID, ACCNO, CADATE, AMOUNT, CATEGORY, NICKNAME)
+        VALUES (#{id}, #{accno}, #{cadate}, #{amount}, #{category}, #{nickname})
+    </insert>
+<!-- 계좌 출금 삭제 -->
+<!-- 계좌 출금 건수 조회 -->
+    <select id="cadaoAccountWithDrawCountSelect" parameterType="caDto" resultType="integer">
+        SELECT COUNT(*) AS CNT
+        FROM ACCOUNTWITHDRAW
+        WHERE 1=1
+        AND ID = #{id}
+        AND CADATE = #{cadate}
+        AND AMOUNT = #{amount}
+        AND CATEGORY = #{category}
+        AND NICKNAME = #{nickname}
+    </select>
+<!-- 계좌 출금 삭제 -->
+    <delete id="cadaoAccountWithDrawDelete" parameterType="caDto">
+        DELETE FROM ACCOUNTWITHDRAW
+        WHERE 1=1 AND ID = #{id}
+        AND CADATE = #{cadate}
+        AND AMOUNT = #{amount}
+        AND CATEGORY = #{category}
+        AND NICKNAME = #{nickname}
+    </delete>
+<!-- 계좌 업데이트 -->
+    <update id="cadaoAccountPlusUpdate" parameterType="caDto">
+        UPDATE ACCOUNT SET
+        ACCAMOUNT = (ACCAMOUNT + #{amount})
+        WHERE 1=1
+        AND NICKNAME = #{nickname}
+    </update>
+<!-- 계좌 입금 삭제 -->
+<!-- 계좌 입금 건수 조회 -->
+    <select id="cadaoAccountDepositCountSelect" parameterType="caDto" resultType="integer">
+        SELECT COUNT(*) AS CNT
+        FROM ACCOUNTDEPOSIT
+        WHERE 1=1
+        AND ID = #{id}
+        AND CADATE = #{cadate}
+        AND AMOUNT = #{amount}
+        AND CATEGORY = #{category}
+        AND NICKNAME = #{nickname}
+    </select>
+<!-- 계좌 입금 삭제 -->
+    <delete id="cadaoAccountDepositDelete" parameterType="caDto">
+        DELETE FROM ACCOUNTDEPOSIT
+        WHERE 1=1
+        AND ID = #{id}
+        AND CADATE = #{cadate}
+        AND AMOUNT = #{amount}
+        AND CATEGORY = #{category}
+        AND NICKNAME = #{nickname}
+    </delete>
+<!-- 계좌 업데이트 -->
+    <update id="cadaoAccountMinusUpdate" parameterType="caDto">
+        UPDATE ACCOUNT SET
+        ACCAMOUNT = (ACCAMOUNT - #{amount})
+        WHERE 1=1
+        AND NICKNAME = #{nickname}
+    </update>
+</mapper>
